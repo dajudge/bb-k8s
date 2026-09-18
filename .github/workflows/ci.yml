@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static and chart checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+      - name: Install Helm
+        uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a # v4.3.1
+      - name: Verify chart
+        run: ./scripts/verify-chart.sh
+      - name: Lint shell scripts
+        run: shellcheck image/*.sh scripts/*.sh
+      - name: Verify npm lockfile
+        working-directory: image
+        run: npm ci --ignore-scripts --omit=dev
+
+  image-integration:
+    name: Image and cluster integration
+    runs-on: ubuntu-24.04
+    needs: static
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+      - name: Install Helm
+        uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a # v4.3.1
+      - name: Install kind
+        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
+        with:
+          install_only: true
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build test image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          load: true
+          tags: bb-k8s:ci
+          build-args: |
+            VCS_REF=${{ github.sha }}
+            VERSION=ci
+          cache-from: type=gha,scope=integration
+          cache-to: type=gha,mode=max,scope=integration
+      - name: Smoke-test image
+        run: ./scripts/smoke-image.sh bb-k8s:ci
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: bb-k8s:ci
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+      - name: Test chart in kind
+        run: ./scripts/integration-kind.sh bb-k8s:ci
+      - name: Collect cluster diagnostics
+        if: failure()
+        run: |
+          kubectl --namespace bb-integration describe pod bb-bb-k8s-0 || true
+          kubectl --namespace bb-integration logs bb-bb-k8s-0 --all-containers || true
+
+  architectures:
+    name: Build ${{ matrix.platform }}
+    runs-on: ubuntu-24.04
+    needs: static
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            cache: amd64
+          - platform: linux/arm64
+            cache: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build architecture
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: false
+          build-args: |
+            VCS_REF=${{ github.sha }}
+            VERSION=ci
+          cache-from: type=gha,scope=${{ matrix.cache }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.cache }}

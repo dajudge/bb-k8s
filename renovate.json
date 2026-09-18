@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "description": "Keep bb and Codex upgrades explicit",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["bb-app", "@openai/codex"],
+      "rangeStrategy": "pin"
+    }
+  ]
+}

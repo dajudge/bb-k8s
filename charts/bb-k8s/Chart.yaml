@@ -1,0 +1,14 @@
+apiVersion: v2
+name: bb-k8s
+description: Run a bb control plane with a Codex-enabled primary host on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.43.1"
+home: https://github.com/dajudge/bb-k8s
+sources:
+  - https://github.com/dajudge/bb-k8s
+  - https://github.com/get-bb/bb
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/prerelease: "true"

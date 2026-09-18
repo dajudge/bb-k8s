@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["replicaCount", "image", "bb", "persistence"],
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "const": 1,
+      "description": "bb uses SQLite and supports exactly one server replica."
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "digest", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "bb": {
+      "type": "object",
+      "required": ["serverPort", "hostDaemonPort", "logLevel", "telemetry"],
+      "properties": {
+        "appUrl": { "type": "string" },
+        "serverPort": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "hostDaemonPort": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "logLevel": { "enum": ["trace", "debug", "info", "warn", "error", "fatal"] },
+        "telemetry": { "type": "boolean" }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "required": ["bb", "codex", "workspace"],
+      "properties": {
+        "bb": { "$ref": "#/definitions/persistence" },
+        "codex": { "$ref": "#/definitions/persistence" },
+        "workspace": { "$ref": "#/definitions/persistence" }
+      }
+    }
+  },
+  "definitions": {
+    "persistence": {
+      "type": "object",
+      "required": ["existingClaim", "accessModes", "size"],
+      "properties": {
+        "existingClaim": { "type": "string" },
+        "storageClass": { "type": "string" },
+        "accessModes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"] }
+        },
+        "size": { "type": "string", "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki)$" }
+      }
+    }
+  }
+}

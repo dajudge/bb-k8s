@@ -1,0 +1,38 @@
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.ingress.acknowledgeUnauthenticatedApiExposure }}
+{{- fail "ingress.enabled exposes bb's unauthenticated command/file API; set ingress.acknowledgeUnauthenticatedApiExposure=true only after providing a trusted authentication boundary" }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "bb-k8s.fullname" . }}
+  labels:
+    {{- include "bb-k8s.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path | quote }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "bb-k8s.fullname" $ }}
+                port:
+                  name: http
+          {{- end }}
+    {{- end }}
+{{- end }}

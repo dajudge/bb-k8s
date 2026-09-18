@@ -1,0 +1,19 @@
+bb is running as a single-replica control plane with a co-located primary host.
+
+The direct bb API is unauthenticated and permits command execution and file
+access. Keep the Service private. Prefer bb connect or another trusted,
+authenticated network boundary.
+
+For local access:
+
+  kubectl -n {{ .Release.Namespace }} port-forward statefulset/{{ include "bb-k8s.fullname" . }} 38886:{{ .Values.bb.serverPort }}
+
+Then open http://127.0.0.1:38886.
+
+To authenticate Codex without Account Pooler, open a terminal on the server
+machine in bb and run:
+
+  codex login --device-auth
+
+The login is stored only in the primary host's persistent CODEX_HOME volume.
+External machines keep their independent Codex endpoints and credentials.

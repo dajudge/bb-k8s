@@ -1,0 +1,111 @@
+replicaCount: 1
+
+image:
+  repository: dajudge/bb-k8s
+  tag: "0.1.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+bb:
+  appUrl: ""
+  logLevel: info
+  telemetry: false
+  serverPort: 38886
+  hostDaemonPort: 38887
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# bb's direct HTTP API is unauthenticated and permits command execution and
+# file access. Prefer bb connect or a private authenticated network boundary.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+  acknowledgeUnauthenticatedApiExposure: false
+
+persistence:
+  bb:
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+  codex:
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+  workspace:
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsGroup: 10001
+  runAsNonRoot: true
+  runAsUser: 10001
+
+resources:
+  server:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  primaryHost:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 2Gi
+
+startupProbe:
+  failureThreshold: 60
+  periodSeconds: 2
+readinessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+livenessProbe:
+  failureThreshold: 3
+  periodSeconds: 20
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []

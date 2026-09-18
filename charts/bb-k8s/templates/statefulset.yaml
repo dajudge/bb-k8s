@@ -1,0 +1,225 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "bb-k8s.fullname" . }}
+  labels:
+    {{- include "bb-k8s.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "bb-k8s.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "bb-k8s.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "bb-k8s.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ include "bb-k8s.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /usr/bin/tini
+            - --
+            - bb-server
+          args:
+            - --data-dir
+            - /var/lib/bb
+            - --server-bind-host
+            - 0.0.0.0
+            - --server-port
+            - {{ .Values.bb.serverPort | quote }}
+          env:
+            - name: BB_DATA_DIR
+              value: /var/lib/bb
+            - name: BB_LOG_LEVEL
+              value: {{ .Values.bb.logLevel | quote }}
+            - name: BB_TELEMETRY
+              value: {{ ternary "true" "false" .Values.bb.telemetry | quote }}
+            {{- with .Values.bb.appUrl }}
+            - name: BB_APP_URL
+              value: {{ . | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.bb.serverPort }}
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.server | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: bb-data
+              mountPath: /var/lib/bb
+            - name: server-tmp
+              mountPath: /tmp
+        - name: primary-host
+          image: {{ include "bb-k8s.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /usr/bin/tini
+            - --
+            - /usr/local/bin/start-primary-host.sh
+          env:
+            - name: BB_DATA_DIR
+              value: /var/lib/bb
+            - name: BB_SERVER_URL
+              value: http://127.0.0.1:{{ .Values.bb.serverPort }}
+            - name: BB_HOST_DAEMON_PORT
+              value: {{ .Values.bb.hostDaemonPort | quote }}
+            - name: CODEX_HOME
+              value: /var/lib/codex
+            - name: HOME
+              value: /home/bb
+          startupProbe:
+            exec:
+              command:
+                - /usr/local/bin/check-url.sh
+                - http://127.0.0.1:{{ .Values.bb.hostDaemonPort }}/health
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/check-url.sh
+                - http://127.0.0.1:{{ .Values.bb.hostDaemonPort }}/health
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/check-url.sh
+                - http://127.0.0.1:{{ .Values.bb.hostDaemonPort }}/health
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources.primaryHost | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: bb-data
+              mountPath: /var/lib/bb
+            - name: codex-data
+              mountPath: /var/lib/codex
+            - name: primary-host-home
+              mountPath: /home/bb
+            - name: primary-host-tmp
+              mountPath: /tmp
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: server-tmp
+          emptyDir: {}
+        - name: primary-host-home
+          emptyDir: {}
+        - name: primary-host-tmp
+          emptyDir: {}
+        {{- if .Values.persistence.bb.existingClaim }}
+        - name: bb-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.bb.existingClaim }}
+        {{- end }}
+        {{- if .Values.persistence.codex.existingClaim }}
+        - name: codex-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.codex.existingClaim }}
+        {{- end }}
+        {{- if .Values.persistence.workspace.existingClaim }}
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.workspace.existingClaim }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if or (not .Values.persistence.bb.existingClaim) (not .Values.persistence.codex.existingClaim) (not .Values.persistence.workspace.existingClaim) }}
+  volumeClaimTemplates:
+    {{- if not .Values.persistence.bb.existingClaim }}
+    - metadata:
+        name: bb-data
+        labels:
+          {{- include "bb-k8s.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.bb.accessModes | nindent 10 }}
+        {{- with .Values.persistence.bb.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.bb.size }}
+    {{- end }}
+    {{- if not .Values.persistence.codex.existingClaim }}
+    - metadata:
+        name: codex-data
+        labels:
+          {{- include "bb-k8s.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.codex.accessModes | nindent 10 }}
+        {{- with .Values.persistence.codex.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.codex.size }}
+    {{- end }}
+    {{- if not .Values.persistence.workspace.existingClaim }}
+    - metadata:
+        name: workspace
+        labels:
+          {{- include "bb-k8s.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.workspace.accessModes | nindent 10 }}
+        {{- with .Values.persistence.workspace.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.workspace.size }}
+    {{- end }}
+  {{- end }}
