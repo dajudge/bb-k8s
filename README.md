@@ -90,8 +90,20 @@ scan and keylessly sign it, package the chart, and create a GitHub release.
 Publishing needs repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 The expected image repository is `dajudge/bb-k8s`.
 
+Create that Docker Hub repository as public before tagging a release. Use a
+Docker Hub personal access token with Read & Write permission; do not use or
+commit an account password.
+
 Runtime versions are pinned in `image/package.json`; the base image is pinned by
 digest. Dependabot and Renovate configuration make updates reviewable.
 
 This project is an independent deployment wrapper and is not affiliated with bb
 or OpenAI.
+
+## Licensing
+
+The wrapper is MIT-licensed. bb 0.43.1 is MIT-licensed and Codex CLI 0.155.0
+is Apache-2.0 licensed. Their exact upstream license/NOTICE files are committed
+under `licenses/` and copied into every image under `/licenses`. Production npm
+licenses are allowlisted and checked by CI; package-level notices remain in the
+installed dependency tree. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

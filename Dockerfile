@@ -29,17 +29,6 @@ RUN npm ci \
 
 FROM node:24.21.0-bookworm-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS runtime
 
-ARG TARGETARCH
-ARG VCS_REF=unknown
-ARG VERSION=dev
-
-LABEL org.opencontainers.image.title="bb-k8s" \
-      org.opencontainers.image.description="bb server and Codex-enabled primary host runtime for Kubernetes" \
-      org.opencontainers.image.source="https://github.com/dajudge/bb-k8s" \
-      org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.licenses="MIT"
-
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
       ca-certificates \
@@ -57,6 +46,9 @@ RUN apt-get update \
 
 COPY --from=dependencies --chown=bb:bb /opt/bb-k8s/node_modules /opt/bb-k8s/node_modules
 COPY --chown=root:root image/start-primary-host.sh image/check-url.sh /usr/local/bin/
+COPY --chown=root:root LICENSE /licenses/bb-k8s/LICENSE
+COPY --chown=root:root THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
+COPY --chown=root:root licenses /licenses/third-party
 
 RUN chmod 0755 /usr/local/bin/start-primary-host.sh /usr/local/bin/check-url.sh \
     && rm -rf /usr/local/lib/node_modules/npm \
@@ -67,6 +59,17 @@ RUN chmod 0755 /usr/local/bin/start-primary-host.sh /usr/local/bin/check-url.sh 
     && ln -s /opt/bb-k8s/node_modules/.bin/bb-server /usr/local/bin/bb-server \
     && ln -s /opt/bb-k8s/node_modules/.bin/bb-host-daemon /usr/local/bin/bb-host-daemon \
     && ln -s /opt/bb-k8s/node_modules/.bin/codex /usr/local/bin/codex
+
+ARG VCS_REF=unknown
+ARG VERSION=dev
+
+LABEL org.opencontainers.image.title="bb-k8s" \
+      org.opencontainers.image.description="bb server and Codex-enabled primary host runtime for Kubernetes" \
+      org.opencontainers.image.source="https://github.com/dajudge/bb-k8s" \
+      org.opencontainers.image.documentation="https://github.com/dajudge/bb-k8s" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="MIT"
 
 ENV BB_DATA_DIR=/var/lib/bb \
     CODEX_HOME=/var/lib/codex \

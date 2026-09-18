@@ -28,6 +28,8 @@ jobs:
         run: ./scripts/verify-chart.sh
       - name: Lint shell scripts
         run: shellcheck image/*.sh scripts/*.sh
+      - name: Verify dependency licenses
+        run: node scripts/verify-licenses.mjs
       - name: Verify npm lockfile
         working-directory: image
         run: npm ci --ignore-scripts --omit=dev

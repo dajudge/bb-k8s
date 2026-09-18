@@ -33,6 +33,7 @@ jobs:
         run: |
           ./scripts/verify-chart.sh
           shellcheck image/*.sh scripts/*.sh
+          node scripts/verify-licenses.mjs
 
   publish:
     name: Publish image and chart
