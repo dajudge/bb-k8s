@@ -38,8 +38,8 @@ kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- codex --v
   | grep -q '0.155.0'
 
 log_marker="bb-log-forwarder-ci-$$"
-kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
-  sh -c 'printf "%s\n" "$1" >> /var/lib/bb/logs/server-stdio.log' sh "${log_marker}"
+printf '%s\n' "${log_marker}" | kubectl --namespace "${namespace}" \
+  exec -i bb-bb-k8s-0 -c primary-host -- tee -a /var/lib/bb/logs/server-stdio.log >/dev/null
 attempt=0
 until kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -q "${log_marker}"; do
   attempt=$((attempt + 1))
