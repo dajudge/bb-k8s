@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["replicaCount", "image", "bb", "persistence"],
+  "required": ["replicaCount", "image", "bb", "logging", "persistence"],
   "properties": {
     "replicaCount": {
       "type": "integer",
@@ -27,6 +27,22 @@
         "hostDaemonPort": { "type": "integer", "minimum": 1024, "maximum": 65535 },
         "logLevel": { "enum": ["trace", "debug", "info", "warn", "error", "fatal"] },
         "telemetry": { "type": "boolean" }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "required": ["sidecar"],
+      "properties": {
+        "sidecar": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Stream bb's file-based server and primary-host logs to a dedicated container's stdout."
+            }
+          }
+        }
       }
     },
     "persistence": {

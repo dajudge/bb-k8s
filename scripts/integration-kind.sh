@@ -37,6 +37,19 @@ kubectl --namespace "${namespace}" get pods
 kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- codex --version \
   | grep -q '0.155.0'
 
+log_marker="bb-log-forwarder-ci-$$"
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
+  sh -c 'printf "%s\n" "$1" >> /var/lib/bb/logs/server-stdio.log' sh "${log_marker}"
+attempt=0
+until kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -q "${log_marker}"; do
+  attempt=$((attempt + 1))
+  if [ "${attempt}" -ge 30 ]; then
+    echo 'log-forwarder did not stream the bb log file' >&2
+    exit 1
+  fi
+  sleep 1
+done
+
 kubectl --namespace "${namespace}" port-forward service/bb-bb-k8s 38886:80 \
   > "${TMPDIR:-/tmp}/bb-k8s-port-forward.log" 2>&1 &
 port_forward_pid=$!
