@@ -6,12 +6,14 @@ reproducible builds, and a single-replica k3s installation.
 
 ## Architecture
 
-The chart runs two containers in one StatefulSet pod:
+The chart runs three containers in one StatefulSet pod:
 
 - `server` runs `bb-server` and owns bb's persistent SQLite-backed state.
 - `primary-host` runs `bb-host-daemon` with the Codex CLI installed. It shares
   bb state with the server and has separate persistent `CODEX_HOME` and
   workspace volumes.
+- `log-forwarder` follows bb's file-based server and host-daemon logs so they
+  are available through Kubernetes' container log API.
 
 External machines can join the same bb server as independent hosts. Their
 Codex installations, API endpoints, and logins remain local to those machines;
@@ -52,6 +54,19 @@ kubectl --namespace bb port-forward service/bb-bb-k8s 38886:80
 ```
 
 Then open <http://127.0.0.1:38886>.
+
+## Logs
+
+bb writes its detailed server and host-daemon output to files instead of the
+main processes' stdout. The enabled-by-default `log-forwarder` sidecar streams
+both files to its stdout:
+
+```sh
+kubectl --namespace bb logs --follow bb-bb-k8s-0 -c log-forwarder
+```
+
+Set `logging.sidecar.enabled=false` if another collector already tails the
+files under `/var/lib/bb/logs`.
 
 ## Log in to Codex on the primary host
 

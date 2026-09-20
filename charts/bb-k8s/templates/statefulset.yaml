@@ -137,6 +137,29 @@ spec:
               mountPath: /tmp
             - name: workspace
               mountPath: /workspace
+        {{- if .Values.logging.sidecar.enabled }}
+        - name: log-forwarder
+          image: {{ include "bb-k8s.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /usr/bin/tini
+            - --
+            - /usr/bin/tail
+          args:
+            - -n
+            - "0"
+            - -F
+            - /var/lib/bb/logs/server-stdio.log
+            - /var/lib/bb/logs/host-daemon-stdio.log
+          resources:
+            {{- toYaml .Values.resources.logForwarder | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: bb-data
+              mountPath: /var/lib/bb
+              readOnly: true
+        {{- end }}
       volumes:
         - name: server-tmp
           emptyDir: {}

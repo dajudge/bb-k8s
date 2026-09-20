@@ -12,8 +12,16 @@ helm template bb "${chart}" > "${work_dir}/default.yaml"
 grep -q 'kind: StatefulSet' "${work_dir}/default.yaml"
 grep -q 'replicas: 1' "${work_dir}/default.yaml"
 grep -q 'name: primary-host' "${work_dir}/default.yaml"
+grep -q 'name: log-forwarder' "${work_dir}/default.yaml"
 if grep -q 'kind: Ingress' "${work_dir}/default.yaml"; then
   echo 'default render unexpectedly contains an Ingress' >&2
+  exit 1
+fi
+
+helm template bb "${chart}" --set logging.sidecar.enabled=false \
+  > "${work_dir}/logging-disabled.yaml"
+if grep -q 'name: log-forwarder' "${work_dir}/logging-disabled.yaml"; then
+  echo 'log-forwarder rendered while disabled' >&2
   exit 1
 fi
 

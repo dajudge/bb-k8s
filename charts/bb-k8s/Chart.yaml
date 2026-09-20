@@ -2,7 +2,7 @@ apiVersion: v2
 name: bb-k8s
 description: Run a bb control plane with a Codex-enabled primary host on Kubernetes
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.43.1"
 home: https://github.com/dajudge/bb-k8s
 sources:
