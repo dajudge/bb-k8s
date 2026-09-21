@@ -65,4 +65,13 @@ until curl --fail --silent --show-error http://127.0.0.1:38886/health >/dev/null
   sleep 1
 done
 
+curl \
+  --fail \
+  --silent \
+  --show-error \
+  --max-time 300 \
+  http://127.0.0.1:38886/install/bb-app.tgz \
+  | tar --gzip --list --file - \
+  | grep -q '^package/package.json$'
+
 echo 'kind integration test passed.'
