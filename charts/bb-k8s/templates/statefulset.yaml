@@ -204,7 +204,7 @@ spec:
     - metadata:
         name: bb-data
         labels:
-          {{- include "bb-k8s.labels" . | nindent 10 }}
+          {{- include "bb-k8s.selectorLabels" . | nindent 10 }}
       spec:
         accessModes:
           {{- toYaml .Values.persistence.bb.accessModes | nindent 10 }}
@@ -219,7 +219,7 @@ spec:
     - metadata:
         name: codex-data
         labels:
-          {{- include "bb-k8s.labels" . | nindent 10 }}
+          {{- include "bb-k8s.selectorLabels" . | nindent 10 }}
       spec:
         accessModes:
           {{- toYaml .Values.persistence.codex.accessModes | nindent 10 }}
@@ -234,7 +234,7 @@ spec:
     - metadata:
         name: workspace
         labels:
-          {{- include "bb-k8s.labels" . | nindent 10 }}
+          {{- include "bb-k8s.selectorLabels" . | nindent 10 }}
       spec:
         accessModes:
           {{- toYaml .Values.persistence.workspace.accessModes | nindent 10 }}
