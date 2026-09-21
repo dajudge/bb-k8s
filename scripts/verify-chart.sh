@@ -12,6 +12,10 @@ helm template bb "${chart}" > "${work_dir}/default.yaml"
 grep -q 'kind: StatefulSet' "${work_dir}/default.yaml"
 grep -q 'replicas: 1' "${work_dir}/default.yaml"
 grep -q 'name: primary-host' "${work_dir}/default.yaml"
+grep -A80 'name: server' "${work_dir}/default.yaml" \
+  | grep -q 'mountPath: /home/bb'
+grep -A20 'name: server-home' "${work_dir}/default.yaml" \
+  | grep -q 'emptyDir: {}'
 claim_templates=$(sed -n '/^  volumeClaimTemplates:/,$p' "${work_dir}/default.yaml")
 if printf '%s\n' "${claim_templates}" | grep -Eq 'helm.sh/chart|app.kubernetes.io/version|app.kubernetes.io/managed-by'; then
   echo 'volumeClaimTemplates contain release-varying labels that break StatefulSet upgrades' >&2

@@ -50,6 +50,8 @@ spec:
           env:
             - name: BB_DATA_DIR
               value: /var/lib/bb
+            - name: HOME
+              value: /home/bb
             - name: BB_LOG_LEVEL
               value: {{ .Values.bb.logLevel | quote }}
             - name: BB_TELEMETRY
@@ -84,6 +86,8 @@ spec:
           volumeMounts:
             - name: bb-data
               mountPath: /var/lib/bb
+            - name: server-home
+              mountPath: /home/bb
             - name: server-tmp
               mountPath: /tmp
         - name: primary-host
@@ -161,6 +165,8 @@ spec:
               readOnly: true
         {{- end }}
       volumes:
+        - name: server-home
+          emptyDir: {}
         - name: server-tmp
           emptyDir: {}
         - name: primary-host-home
