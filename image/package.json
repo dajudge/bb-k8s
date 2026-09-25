@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@openai/codex": "0.155.0",
-    "bb-app": "0.43.1"
+    "bb-app": "0.43.3"
   },
   "overrides": {
     "bb-app": {
