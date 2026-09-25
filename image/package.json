@@ -10,7 +10,7 @@
     "node-pty@1.2.0-beta.15": true
   },
   "dependencies": {
-    "@openai/codex": "0.155.0",
+    "@openai/codex": "0.155.1",
     "bb-app": "0.43.1"
   },
   "overrides": {
