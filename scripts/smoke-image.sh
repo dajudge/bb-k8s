@@ -11,6 +11,8 @@ trap cleanup EXIT INT TERM
 uid=$(docker run --rm --entrypoint id "${image}" -u)
 test "${uid}" = 10001
 
+docker run --rm --entrypoint bwrap "${image}" --version
+
 docker run --rm --entrypoint bb "${image}" --version | grep -q '0.43.1'
 docker run --rm --entrypoint codex "${image}" --version | grep -q '0.155.0'
 

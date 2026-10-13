@@ -19,6 +19,10 @@ External machines can join the same bb server as independent hosts. Their
 Codex installations, API endpoints, and logins remain local to those machines;
 there is no account pooler or shared Codex credential store.
 
+The runtime image includes `bwrap` (bubblewrap) for agent sandboxing. Creating
+sandboxes requires user namespaces permitted by the node kernel and container
+runtime security policy.
+
 ## Security boundary
 
 bb's direct HTTP API is unauthenticated and includes command execution and file
