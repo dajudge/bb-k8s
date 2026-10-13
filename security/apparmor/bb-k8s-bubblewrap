@@ -1,5 +1,6 @@
 # Optional primary-host profile for AppArmor 4 (including Ubuntu 24.04).
 # Node/container boundaries and the companion seccomp profile still apply.
+abi <abi/4.0>,
 #include <tunables/global>
 
 profile bb-k8s-bubblewrap flags=(attach_disconnected,mediate_deleted) {
