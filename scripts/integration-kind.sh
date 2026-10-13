@@ -2,6 +2,9 @@
 set -eu
 
 image=${1:?usage: integration-kind.sh IMAGE}
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+codex_version=$(node -p 'require(process.argv[1]).dependencies["@openai/codex"]' "${repo_root}/image/package.json")
+
 cluster=${KIND_CLUSTER_NAME:-bb-k8s-ci}
 namespace=bb-integration
 release=bb
@@ -35,7 +38,7 @@ helm upgrade --install "${release}" ./charts/bb-k8s \
 kubectl --namespace "${namespace}" rollout status statefulset/bb-bb-k8s --timeout=2m
 kubectl --namespace "${namespace}" get pods
 kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- codex --version \
-  | grep -q '0.155.0'
+  | grep -Fq "${codex_version}"
 
 log_marker="bb-log-forwarder-ci-$$"
 printf '%s\n' "${log_marker}" | kubectl --namespace "${namespace}" \

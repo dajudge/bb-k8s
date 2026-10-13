@@ -9,7 +9,7 @@ under its own license.
 | Component | Version | License | Source and bundled notice |
 | --- | --- | --- | --- |
 | bb (`bb-app`) | 0.43.1 | MIT | [get-bb/bb, `desktop-v0.43.1`](https://github.com/get-bb/bb/tree/desktop-v0.43.1); copied to `/licenses/third-party/bb/LICENSE` |
-| Codex CLI (`@openai/codex`) | 0.155.0 | Apache-2.0 | [openai/codex, `rust-v0.155.0`](https://github.com/openai/codex/tree/rust-v0.155.0); license and NOTICE copied to `/licenses/third-party/codex/` |
+| Codex CLI (`@openai/codex`) | 0.160.1 | Apache-2.0 | [openai/codex, `rust-v0.160.1`](https://github.com/openai/codex/tree/rust-v0.160.1); license and NOTICE copied to `/licenses/third-party/codex/` |
 | Node.js | 24.21.0 | MIT and bundled third-party terms | The official Node image's `/usr/local/LICENSE` is retained |
 | Debian Bookworm packages | image-specific | package-specific | Debian copyright files are retained under `/usr/share/doc/*/copyright` |
 
