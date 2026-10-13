@@ -5,6 +5,8 @@ user_ns=$(readlink /proc/self/ns/user)
 mount_ns=$(readlink /proc/self/ns/mnt)
 network_ns=$(readlink /proc/self/ns/net)
 
+# These expressions are evaluated by the shell inside the sandbox.
+# shellcheck disable=SC2016
 bwrap --unshare-user --unshare-pid --unshare-net --die-with-parent \
   --ro-bind / / --proc /proc --dev /dev --tmpfs /tmp --chdir /tmp \
   /bin/sh -ec '
