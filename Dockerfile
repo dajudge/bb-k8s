@@ -2,6 +2,12 @@
 
 FROM node:24.21.0-bookworm-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553 AS dependencies
 
+# bb 0.45 uses better-sqlite3 13, which builds its native addon from source.
+# Keep the compiler and Python in this stage, outside the runtime image.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /opt/bb-k8s
 
 # npm is a bb runtime dependency used for plugin installation. npm 11.19.0
