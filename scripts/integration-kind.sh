@@ -9,6 +9,15 @@ release=bb
 port_forward_pid=
 
 cleanup() {
+  exit_status=$?
+  if [ "${exit_status}" -ne 0 ]; then
+    kubectl --namespace "${namespace}" describe pod bb-bb-k8s-0 >&2 || true
+    kubectl --namespace "${namespace}" logs bb-bb-k8s-0 --all-containers >&2 || true
+    for kind_node in $(kind get nodes --name "${cluster}" 2>/dev/null); do
+      docker exec "${kind_node}" dmesg 2>/dev/null \
+        | grep -E 'apparmor.*(bwrap|bubblewrap)' | tail -20 >&2 || true
+    done
+  fi
   if [ -n "${port_forward_pid}" ]; then
     kill "${port_forward_pid}" >/dev/null 2>&1 || true
   fi
