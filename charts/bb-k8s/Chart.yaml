@@ -10,5 +10,5 @@ sources:
   - https://github.com/get-bb/bb
 annotations:
   artifacthub.io/license: MIT
-  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/containsSecurityUpdates: "true"
   artifacthub.io/prerelease: "true"
