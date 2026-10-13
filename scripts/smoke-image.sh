@@ -2,6 +2,10 @@
 set -eu
 
 image=${1:?usage: smoke-image.sh IMAGE}
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+codex_version=$(node -p 'require(process.argv[1]).dependencies["@openai/codex"]' "${repo_root}/image/package.json")
+bb_version=$(node -p 'require(process.argv[1]).dependencies["bb-app"]' "${repo_root}/image/package.json")
+
 container="bb-k8s-smoke-$$"
 cleanup() {
   docker rm --force "${container}" >/dev/null 2>&1 || true
@@ -11,8 +15,8 @@ trap cleanup EXIT INT TERM
 uid=$(docker run --rm --entrypoint id "${image}" -u)
 test "${uid}" = 10001
 
-docker run --rm --entrypoint bb "${image}" --version | grep -q '0.43.1'
-docker run --rm --entrypoint codex "${image}" --version | grep -q '0.155.0'
+docker run --rm --entrypoint bb "${image}" --version | grep -Fq "${bb_version}"
+docker run --rm --entrypoint codex "${image}" --version | grep -Fq "${codex_version}"
 
 docker run --detach \
   --name "${container}" \

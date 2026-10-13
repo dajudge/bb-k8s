@@ -117,7 +117,7 @@ or OpenAI.
 
 ## Licensing
 
-The wrapper is MIT-licensed. bb 0.43.1 is MIT-licensed and Codex CLI 0.155.0
+The wrapper is MIT-licensed. bb 0.43.1 is MIT-licensed and Codex CLI 0.160.1
 is Apache-2.0 licensed. Their exact upstream license/NOTICE files are committed
 under `licenses/` and copied into every image under `/licenses`. Production npm
 licenses are allowlisted and checked by CI; package-level notices remain in the
