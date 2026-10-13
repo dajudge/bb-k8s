@@ -26,7 +26,7 @@ const reviewedLicenses = new Set([
 // Their release artifacts/upstream tags were manually reviewed and their notices
 // are retained in the image.
 const reviewedMetadataExceptions = new Map([
-  ["bb-app@0.43.1", "MIT"],
+  ["bb-app@0.45.0", "MIT"],
   ["qrcode-terminal@0.12.0", "Apache-2.0"],
 ]);
 
