@@ -50,6 +50,20 @@ only to `primary-host`; it keeps UID 10001, no privilege escalation, dropped
 capabilities, and the read-only root filesystem. See
 [the profile notes](security/seccomp/README.md) for its syscall changes.
 
+On AppArmor 4 nodes (including Ubuntu 24.04), load the supplied primary-host
+profile on each node and set
+`primaryHost.bubblewrap.appArmorProfile=bb-k8s-bubblewrap`:
+
+```sh
+sudo install -m 0644 security/apparmor/bb-k8s-bubblewrap /etc/apparmor.d/bb-k8s-bubblewrap
+sudo apparmor_parser --replace /etc/apparmor.d/bb-k8s-bubblewrap
+```
+
+This allows namespace/mount setup only for the selected primary-host workload,
+without disabling AppArmor or changing system-wide user-namespace restrictions.
+It retains denials for writes to `/proc/sys` and `/sys` and grants no pod
+capabilities. Omit this setting on nodes without AppArmor.
+
 Nodes must permit unprivileged user namespaces. AppArmor/SELinux and outer
 container policies must also allow bubblewrap's namespace and mount operations;
 a seccomp profile cannot override those policies. Validate the deployed host:

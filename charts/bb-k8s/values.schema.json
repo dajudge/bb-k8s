@@ -63,8 +63,12 @@
             },
             "localhostProfile": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*\\.json$",
+              "pattern": "^([A-Za-z0-9_-][A-Za-z0-9_.-]*/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.json$",
               "description": "Profile relative to the kubelet seccomp root; install on every schedulable node before enabling bubblewrap."
+            },
+            "appArmorProfile": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]*$"
             }
           }
         }

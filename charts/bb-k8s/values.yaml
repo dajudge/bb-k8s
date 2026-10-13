@@ -27,6 +27,8 @@ primaryHost:
     # kubelet seccomp root. Only the primary-host container uses this profile.
     enabled: false
     localhostProfile: bb-k8s/bubblewrap.json
+    # Optional loaded AppArmor profile name, for nodes that restrict userns.
+    appArmorProfile: ""
 
 service:
   type: ClusterIP

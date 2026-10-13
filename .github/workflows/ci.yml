@@ -72,6 +72,8 @@ jobs:
           exit-code: 1
           format: table
       - name: Test chart in kind
+        env:
+          BUBBLEWRAP_TEST_APPARMOR: "true"
         run: ./scripts/integration-kind.sh bb-k8s:ci
       - name: Collect cluster diagnostics
         if: failure()

@@ -7,6 +7,8 @@ cluster=${KIND_CLUSTER_NAME:-bb-k8s-ci}
 namespace=bb-integration
 release=bb
 port_forward_pid=
+kind_config=$(mktemp)
+
 
 cleanup() {
   exit_status=$?
@@ -21,13 +23,29 @@ cleanup() {
   if [ -n "${port_forward_pid}" ]; then
     kill "${port_forward_pid}" >/dev/null 2>&1 || true
   fi
+  rm -f "${kind_config}"
   if [ "${KEEP_KIND_CLUSTER:-false}" != true ]; then
     kind delete cluster --name "${cluster}" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT INT TERM
 
-kind create cluster --name "${cluster}" --wait 120s
+cat > "${kind_config}" <<'YAML'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: /sys/kernel/security
+        containerPath: /sys/kernel/security
+        readOnly: true
+YAML
+
+if [ "${BUBBLEWRAP_TEST_APPARMOR:-false}" = true ]; then
+  sudo apparmor_parser --replace "${repo_root}/security/apparmor/bb-k8s-bubblewrap"
+fi
+
+kind create cluster --name "${cluster}" --config "${kind_config}" --wait 120s
 kind load docker-image --name "${cluster}" "${image}"
 
 # Localhost seccomp profiles live on the node, rather than in the pod image.
@@ -91,10 +109,16 @@ curl \
   | tar --gzip --list --file - \
   | grep -q '^package/package.json$'
 
+app_armor_profile=
+if [ "${BUBBLEWRAP_TEST_APPARMOR:-false}" = true ]; then
+  app_armor_profile=bb-k8s-bubblewrap
+fi
+
 helm upgrade "${release}" "${repo_root}/charts/bb-k8s" \
   --namespace "${namespace}" \
   --reuse-values \
   --set primaryHost.bubblewrap.enabled=true \
+  --set "primaryHost.bubblewrap.appArmorProfile=${app_armor_profile}" \
   --wait \
   --timeout 5m
 

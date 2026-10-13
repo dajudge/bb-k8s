@@ -1,0 +1,30 @@
+# Optional primary-host profile for AppArmor 4 (including Ubuntu 24.04).
+# Node/container boundaries and the companion seccomp profile still apply.
+#include <tunables/global>
+
+profile bb-k8s-bubblewrap flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  file,
+  network,
+  signal,
+  ptrace (read, readby, trace, tracedby) peer=bb-k8s-bubblewrap,
+  userns,
+  mount,
+  umount,
+  pivot_root,
+
+  # Required during setup inside the newly created user namespace. The pod
+  # still drops ALL capabilities in its original namespace.
+  capability sys_admin,
+  capability sys_chroot,
+  capability net_admin,
+  capability setuid,
+  capability setgid,
+  capability setpcap,
+  capability sys_ptrace,
+
+  deny /proc/sys/** w,
+  deny /proc/kcore r,
+  deny /proc/kallsyms r,
+  deny /sys/** w,
+}

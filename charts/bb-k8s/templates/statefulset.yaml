@@ -131,6 +131,9 @@ spec:
           {{- $primaryHostSecurityContext := deepCopy .Values.securityContext }}
           {{- if .Values.primaryHost.bubblewrap.enabled }}
           {{- $_ := set $primaryHostSecurityContext "seccompProfile" (dict "type" "Localhost" "localhostProfile" .Values.primaryHost.bubblewrap.localhostProfile) }}
+          {{- if .Values.primaryHost.bubblewrap.appArmorProfile }}
+          {{- $_ := set $primaryHostSecurityContext "appArmorProfile" (dict "type" "Localhost" "localhostProfile" .Values.primaryHost.bubblewrap.appArmorProfile) }}
+          {{- end }}
           {{- end }}
           securityContext:
             {{- toYaml $primaryHostSecurityContext | nindent 12 }}
