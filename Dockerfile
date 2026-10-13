@@ -47,12 +47,12 @@ RUN apt-get update \
       /workspace
 
 COPY --from=dependencies --chown=bb:bb /opt/bb-k8s/node_modules /opt/bb-k8s/node_modules
-COPY --chown=root:root image/start-primary-host.sh image/check-url.sh /usr/local/bin/
+COPY --chown=root:root image/start-primary-host.sh image/check-url.sh image/check-bubblewrap.sh /usr/local/bin/
 COPY --chown=root:root LICENSE /licenses/bb-k8s/LICENSE
 COPY --chown=root:root THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 COPY --chown=root:root licenses /licenses/third-party
 
-RUN chmod 0755 /usr/local/bin/start-primary-host.sh /usr/local/bin/check-url.sh \
+RUN chmod 0755 /usr/local/bin/start-primary-host.sh /usr/local/bin/check-url.sh /usr/local/bin/check-bubblewrap.sh \
     && rm -rf /usr/local/lib/node_modules/npm \
     && ln -sf /opt/bb-k8s/node_modules/bb-app/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -sf /opt/bb-k8s/node_modules/bb-app/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \

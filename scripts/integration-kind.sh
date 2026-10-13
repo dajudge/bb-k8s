@@ -2,6 +2,7 @@
 set -eu
 
 image=${1:?usage: integration-kind.sh IMAGE}
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cluster=${KIND_CLUSTER_NAME:-bb-k8s-ci}
 namespace=bb-integration
 release=bb
@@ -19,6 +20,13 @@ trap cleanup EXIT INT TERM
 
 kind create cluster --name "${cluster}" --wait 120s
 kind load docker-image --name "${cluster}" "${image}"
+
+# Localhost seccomp profiles live on the node, rather than in the pod image.
+for kind_node in $(kind get nodes --name "${cluster}"); do
+  docker exec "${kind_node}" mkdir -p /var/lib/kubelet/seccomp/bb-k8s
+  docker cp "${repo_root}/security/seccomp/bubblewrap.json" \
+    "${kind_node}:/var/lib/kubelet/seccomp/bb-k8s/bubblewrap.json"
+done
 
 repository=${image%:*}
 tag=${image##*:}
@@ -73,5 +81,16 @@ curl \
   http://127.0.0.1:38886/install/bb-app.tgz \
   | tar --gzip --list --file - \
   | grep -q '^package/package.json$'
+
+helm upgrade "${release}" "${repo_root}/charts/bb-k8s" \
+  --namespace "${namespace}" \
+  --reuse-values \
+  --set primaryHost.bubblewrap.enabled=true \
+  --wait \
+  --timeout 5m
+
+kubectl --namespace "${namespace}" rollout status statefulset/bb-bb-k8s --timeout=2m
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host \
+  -- /usr/local/bin/check-bubblewrap.sh
 
 echo 'kind integration test passed.'

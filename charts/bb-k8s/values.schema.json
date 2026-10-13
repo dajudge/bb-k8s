@@ -45,6 +45,31 @@
         }
       }
     },
+    "primaryHost": {
+      "type": "object",
+      "required": [
+        "bubblewrap"
+      ],
+      "properties": {
+        "bubblewrap": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "localhostProfile"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "localhostProfile": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*\\.json$",
+              "description": "Profile relative to the kubelet seccomp root; install on every schedulable node before enabling bubblewrap."
+            }
+          }
+        }
+      }
+    },
     "persistence": {
       "type": "object",
       "required": ["bb", "codex", "workspace"],

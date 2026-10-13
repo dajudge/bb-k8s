@@ -128,8 +128,12 @@ spec:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources.primaryHost | nindent 12 }}
+          {{- $primaryHostSecurityContext := deepCopy .Values.securityContext }}
+          {{- if .Values.primaryHost.bubblewrap.enabled }}
+          {{- $_ := set $primaryHostSecurityContext "seccompProfile" (dict "type" "Localhost" "localhostProfile" .Values.primaryHost.bubblewrap.localhostProfile) }}
+          {{- end }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml $primaryHostSecurityContext | nindent 12 }}
           volumeMounts:
             - name: bb-data
               mountPath: /var/lib/bb

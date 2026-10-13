@@ -19,10 +19,6 @@ External machines can join the same bb server as independent hosts. Their
 Codex installations, API endpoints, and logins remain local to those machines;
 there is no account pooler or shared Codex credential store.
 
-The runtime image includes `bwrap` (bubblewrap) for agent sandboxing. Creating
-sandboxes requires user namespaces permitted by the node kernel and container
-runtime security policy.
-
 ## Security boundary
 
 bb's direct HTTP API is unauthenticated and includes command execution and file
@@ -34,6 +30,37 @@ proxy on a private network.
 The workload runs as UID/GID 10001, drops all Linux capabilities, uses a
 read-only root filesystem, disables service-account token mounting, and stores
 only the required mutable state in volumes.
+
+## Bubblewrap sandboxing
+
+The image includes `bwrap`. The default `RuntimeDefault` seccomp policy blocks
+sandbox creation; enable the primary-host profile after provisioning the nodes:
+
+```sh
+# Run on every node where this workload can be scheduled. Adjust the directory
+# if your kubelet uses a different seccomp root.
+sudo install -D -m 0644 security/seccomp/bubblewrap.json \
+  /var/lib/kubelet/seccomp/bb-k8s/bubblewrap.json
+```
+
+Check the node kubelet’s `--root-dir` (including k3s configurations) and install
+under its `seccomp/bb-k8s/` directory. Set
+`primaryHost.bubblewrap.enabled=true` in your Helm values. The profile applies
+only to `primary-host`; it keeps UID 10001, no privilege escalation, dropped
+capabilities, and the read-only root filesystem. See
+[the profile notes](security/seccomp/README.md) for its syscall changes.
+
+Nodes must permit unprivileged user namespaces. AppArmor/SELinux and outer
+container policies must also allow bubblewrap's namespace and mount operations;
+a seccomp profile cannot override those policies. Validate the deployed host:
+
+```sh
+kubectl exec bb-bb-k8s-0 -c primary-host -- /usr/local/bin/check-bubblewrap.sh
+```
+
+The test creates user, mount, PID, and network namespaces, writes to a private
+`/tmp`, and verifies the sandbox cannot write to the workspace. CI tests both the
+default chart and this opt-in configuration in kind.
 
 ## Install
 

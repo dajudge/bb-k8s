@@ -21,6 +21,13 @@ logging:
   sidecar:
     enabled: true
 
+primaryHost:
+  bubblewrap:
+    # Requires the profile installed on each schedulable node, relative to the
+    # kubelet seccomp root. Only the primary-host container uses this profile.
+    enabled: false
+    localhostProfile: bb-k8s/bubblewrap.json
+
 service:
   type: ClusterIP
   port: 80

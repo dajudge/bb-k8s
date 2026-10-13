@@ -61,4 +61,17 @@ digest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 helm template bb "${chart}" --set "image.digest=${digest}" > "${work_dir}/digest.yaml"
 grep -q "dajudge/bb-k8s@${digest}" "${work_dir}/digest.yaml"
 
+helm template bb "${chart}" --set primaryHost.bubblewrap.enabled=true \
+  > "${work_dir}/bubblewrap.yaml"
+node -e '
+  const fs = require("node:fs");
+  const yaml = fs.readFileSync(process.argv[1], "utf8");
+  const primary = yaml.split("- name: primary-host")[1].split("- name: log-forwarder")[0];
+  if (!primary.includes("type: Localhost") || !/localhostProfile: [\x22]?bb-k8s\/bubblewrap\.json[\x22]?/.test(primary)) process.exit(1);
+  if ((yaml.match(/type: Localhost/g) || []).length !== 1) process.exit(1);
+  for (const setting of ["allowPrivilegeEscalation: false", "readOnlyRootFilesystem: true", "runAsUser: 10001", "- ALL"]) {
+    if (!primary.includes(setting)) process.exit(1);
+  }
+' "${work_dir}/bubblewrap.yaml"
+
 echo 'Helm chart verification passed.'
