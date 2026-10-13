@@ -2,7 +2,7 @@
 set -eu
 
 image=${1:?usage: smoke-image.sh IMAGE}
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 codex_version=$(node -p 'require(process.argv[1]).dependencies["@openai/codex"]' "${repo_root}/image/package.json")
 bb_version=$(node -p 'require(process.argv[1]).dependencies["bb-app"]' "${repo_root}/image/package.json")
 
