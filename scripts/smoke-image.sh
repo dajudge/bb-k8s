@@ -18,6 +18,22 @@ test "${uid}" = 10001
 docker run --rm --entrypoint bb "${image}" --version | grep -Fq "${bb_version}"
 docker run --rm --entrypoint codex "${image}" --version | grep -Fq "${codex_version}"
 
+# Exercise the native addon against the image's actual Node runtime. The strict
+# install above checks declared engine ranges; this catches ABI/runtime failures.
+docker run --rm --entrypoint node "${image}" -e '
+const { createRequire } = require("node:module");
+const requireFromBb = createRequire("/opt/bb-k8s/node_modules/bb-app/package.json");
+const Database = requireFromBb("better-sqlite3");
+const db = new Database(":memory:");
+db.exec("CREATE TABLE compatibility (value TEXT NOT NULL)");
+db.prepare("INSERT INTO compatibility (value) VALUES (?)").run("node-compatible");
+const row = db.prepare("SELECT value FROM compatibility").get();
+db.close();
+if (row.value !== "node-compatible") {
+  throw new Error("better-sqlite3 compatibility check failed");
+}
+'
+
 docker run --detach \
   --name "${container}" \
   --read-only \

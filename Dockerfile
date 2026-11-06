@@ -17,6 +17,7 @@ COPY image/package.json image/package-lock.json ./
 
 RUN npm ci \
       --omit=dev \
+      --engine-strict \
       --strict-allow-scripts \
     && npm install \
       --prefix /opt/npm-patches \
