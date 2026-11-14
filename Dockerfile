@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:26.12.1-bookworm-slim@sha256:88e480776c6149ff1d098cd304f44bf18057fb5d284a3329b78162d29821e28c AS dependencies
+FROM node:26.13.0-bookworm-slim@sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68 AS dependencies
 
 # bb 0.45 uses better-sqlite3 13, which builds its native addon from source.
 # Keep the compiler and Python in this stage, outside the runtime image.
@@ -34,7 +34,7 @@ RUN npm ci \
     && rm -rf /opt/npm-patches \
     && npm cache clean --force
 
-FROM node:26.12.1-bookworm-slim@sha256:88e480776c6149ff1d098cd304f44bf18057fb5d284a3329b78162d29821e28c AS runtime
+FROM node:26.13.0-bookworm-slim@sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68 AS runtime
 
 RUN apt-get update \
     && apt-get upgrade --yes \
