@@ -6,15 +6,16 @@ under its own license.
 
 ## Direct runtime components
 
-| Component | Version | License | Source and bundled notice |
-| --- | --- | --- | --- |
-| bb (`bb-app`) | 0.45.0 | MIT | [get-bb/bb, `desktop-v0.45.0`](https://github.com/get-bb/bb/tree/desktop-v0.45.0); copied to `/licenses/third-party/bb/LICENSE` |
-| Codex CLI (`@openai/codex`) | 0.160.1 | Apache-2.0 | [openai/codex, `rust-v0.160.1`](https://github.com/openai/codex/tree/rust-v0.160.1); license and NOTICE copied to `/licenses/third-party/codex/` |
-| Node.js | 24.21.0 | MIT and bundled third-party terms | The official Node image's `/usr/local/LICENSE` is retained |
-| Debian Bookworm packages | image-specific | package-specific | Debian copyright files are retained under `/usr/share/doc/*/copyright` |
+| Component | License | Source and bundled notice |
+| --- | --- | --- |
+| bb (`bb-app`) | MIT | [get-bb/bb](https://github.com/get-bb/bb); copied to `/licenses/third-party/bb/LICENSE` |
+| Codex CLI (`@openai/codex`) | Apache-2.0 | [openai/codex](https://github.com/openai/codex); license and NOTICE copied to `/licenses/third-party/codex/` |
+| Node.js | MIT and bundled third-party terms | The official Node image's `/usr/local/LICENSE` is retained |
+| Debian Bookworm packages | package-specific | Debian copyright files are retained under `/usr/share/doc/*/copyright` |
 
 The bb npm tarball does not declare a `license` field or include its top-level
-license. Its repository's exact `desktop-v0.45.0` tag is MIT-licensed, so that
+license. Every bundled bb version is therefore accepted only through an exact,
+manually reviewed exception in the license verifier. The reviewed upstream MIT
 license is included explicitly here and in the image.
 
 ## npm production dependencies
