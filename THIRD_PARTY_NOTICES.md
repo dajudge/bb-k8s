@@ -13,10 +13,9 @@ under its own license.
 | Node.js | MIT and bundled third-party terms | The official Node image's `/usr/local/LICENSE` is retained |
 | Debian Bookworm packages | package-specific | Debian copyright files are retained under `/usr/share/doc/*/copyright` |
 
-The bb npm tarball does not declare a `license` field or include its top-level
-license. Every bundled bb version is therefore accepted only through an exact,
-manually reviewed exception in the license verifier. The reviewed upstream MIT
-license is included explicitly here and in the image.
+The bb 0.50.1 npm tarball declares its MIT license and includes its top-level
+LICENSE. The reviewed upstream MIT license is also included explicitly here and
+in the image.
 
 ## npm production dependencies
 
