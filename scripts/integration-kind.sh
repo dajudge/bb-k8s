@@ -9,8 +9,10 @@ cluster=${KIND_CLUSTER_NAME:-bb-k8s-ci}
 namespace=bb-integration
 release=bb
 port_forward_pid=
+work_dir=$(mktemp -d)
 
 cleanup() {
+  rm -rf "${work_dir}"
   if [ -n "${port_forward_pid}" ]; then
     kill "${port_forward_pid}" >/dev/null 2>&1 || true
   fi
@@ -25,7 +27,48 @@ kind load docker-image --name "${cluster}" "${image}"
 
 repository=${image%:*}
 tag=${image##*:}
-helm upgrade --install "${release}" ./charts/bb-k8s \
+# Start with the exact published chart/image currently deployed in production.
+curl --fail --silent --show-error --location \
+  https://github.com/dajudge/bb-k8s/releases/download/v0.2.4/bb-k8s-0.2.4.tgz \
+  --output "${work_dir}/previous.tgz"
+printf '%s  %s\n' \
+  9b8df1253cf58523c3982124d8d39d3112a2e45820e47c24f6958ea1184ce958 \
+  "${work_dir}/previous.tgz" | sha256sum --check
+helm install "${release}" "${work_dir}/previous.tgz" \
+  --namespace "${namespace}" \
+  --create-namespace \
+  --set image.digest=sha256:d2d43355900c584d9ed800a4f1e951cdd84fb200f0ddc8ccb744e048a2633c5a \
+  --set podDisruptionBudget.enabled=false \
+  --wait \
+  --timeout 5m
+
+# Seed application state through the old CLI and files on both host volumes.
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c server -- \
+  env BB_SERVER_URL=http://127.0.0.1:38886 \
+  bb settings general showDiagnosticEvents true --json
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
+  sh -c 'printf "%s\n" upgrade-fixture > /workspace/bb-upgrade-fixture.txt
+         printf "%s\n" upgrade-fixture > /var/lib/codex/bb-upgrade-fixture.txt'
+
+verify_persisted_state() {
+  kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c server -- \
+    env BB_SERVER_URL=http://127.0.0.1:38886 bb settings show --json \
+    | node -e '
+let input = "";
+process.stdin.on("data", chunk => { input += chunk; });
+process.stdin.on("end", () => {
+  if (JSON.parse(input).generalSettings.showDiagnosticEvents !== true) {
+    throw new Error("Saved bb setting did not survive the upgrade");
+  }
+});'
+  kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
+    sh -c 'grep -qx upgrade-fixture /workspace/bb-upgrade-fixture.txt &&
+           grep -qx upgrade-fixture /var/lib/codex/bb-upgrade-fixture.txt'
+}
+verify_persisted_state
+
+helm upgrade "${release}" ./charts/bb-k8s \
+  --reset-values \
   --namespace "${namespace}" \
   --create-namespace \
   --set "image.repository=${repository}" \
@@ -37,6 +80,7 @@ helm upgrade --install "${release}" ./charts/bb-k8s \
 
 kubectl --namespace "${namespace}" rollout status statefulset/bb-bb-k8s --timeout=2m
 kubectl --namespace "${namespace}" get pods
+verify_persisted_state
 kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- codex --version \
   | grep -Fq "${codex_version}"
 
@@ -77,4 +121,9 @@ curl \
   | tar --gzip --list --file - \
   | grep -q '^package/package.json$'
 
-echo 'kind integration test passed.'
+# A second boot checks startup against the newly migrated state as well.
+kubectl --namespace "${namespace}" rollout restart statefulset/bb-bb-k8s
+kubectl --namespace "${namespace}" rollout status statefulset/bb-bb-k8s --timeout=2m
+verify_persisted_state
+
+echo 'kind integration and persisted-state upgrade tests passed.'

@@ -10,28 +10,13 @@ RUN apt-get update \
 
 WORKDIR /opt/bb-k8s
 
-# npm is a bb runtime dependency used for plugin installation. npm 11.19.0
-# still bundles older copies of these libraries, so replace them in bb's exact
-# nested npm tree until npm publishes a fully remediated 11.x bundle.
+# bb pins npm 11.21.2, including the previously patched security dependencies.
 COPY image/package.json image/package-lock.json ./
 
 RUN npm ci \
       --omit=dev \
       --engine-strict \
       --strict-allow-scripts \
-    && npm install \
-      --prefix /opt/npm-patches \
-      --no-save \
-      --ignore-scripts \
-      brace-expansion@5.0.12 \
-      ip-address@10.7.2 \
-      tar@7.5.22 \
-      undici@6.28.1 \
-    && cp -a /opt/npm-patches/node_modules/brace-expansion /opt/bb-k8s/node_modules/bb-app/node_modules/npm/node_modules/ \
-    && cp -a /opt/npm-patches/node_modules/ip-address /opt/bb-k8s/node_modules/bb-app/node_modules/npm/node_modules/ \
-    && cp -a /opt/npm-patches/node_modules/tar /opt/bb-k8s/node_modules/bb-app/node_modules/npm/node_modules/ \
-    && cp -a /opt/npm-patches/node_modules/undici /opt/bb-k8s/node_modules/bb-app/node_modules/npm/node_modules/ \
-    && rm -rf /opt/npm-patches \
     && npm cache clean --force
 
 FROM node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS runtime
@@ -60,8 +45,8 @@ COPY --chown=root:root licenses /licenses/third-party
 
 RUN chmod 0755 /usr/local/bin/start-primary-host.sh /usr/local/bin/check-url.sh \
     && rm -rf /usr/local/lib/node_modules/npm \
-    && ln -sf /opt/bb-k8s/node_modules/bb-app/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -sf /opt/bb-k8s/node_modules/bb-app/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && ln -sf /opt/bb-k8s/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf /opt/bb-k8s/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && ln -s /opt/bb-k8s/node_modules/.bin/bb-app /usr/local/bin/bb-app \
     && ln -s /opt/bb-k8s/node_modules/.bin/bb /usr/local/bin/bb \
     && ln -s /opt/bb-k8s/node_modules/.bin/bb-server /usr/local/bin/bb-server \
