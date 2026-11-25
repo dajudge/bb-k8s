@@ -59,7 +59,11 @@ Then open <http://127.0.0.1:38886>.
 
 bb writes its detailed server and host-daemon output to files instead of the
 main processes' stdout. The enabled-by-default `log-forwarder` sidecar streams
-both files to its stdout:
+the numbered JSON logs (`server.N.log` and `host-daemon.N.log`) and the
+`server-stdio.log` / `host-daemon-stdio.log` files to stdout. A directory scan
+every second discovers new files after rotation or server restarts; inode
+tracking avoids replaying files when they are renamed. The sidecar mounts the
+logs read-only and uses Node from the existing runtime image:
 
 ```sh
 kubectl --namespace bb logs --follow bb-bb-k8s-0 -c log-forwarder
@@ -67,6 +71,11 @@ kubectl --namespace bb logs --follow bb-bb-k8s-0 -c log-forwarder
 
 Set `logging.sidecar.enabled=false` if another collector already tails the
 files under `/var/lib/bb/logs`.
+
+Retained history is skipped when the sidecar starts. Offsets are held in memory,
+so this is a live stream rather than a durable delivery queue: use the persistent
+files to investigate entries written while the sidecar or collector was down.
+The sidecar does not delete or modify application logs.
 
 ## Log in to Codex on the primary host
 

@@ -97,6 +97,32 @@ until kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | gre
   sleep 1
 done
 
+# Numbered files can first appear after the sidecar starts. Renaming one must
+# neither replay its contents nor prevent discovery of its replacement.
+# shellcheck disable=SC2016 # Positional parameters expand inside the container.
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
+  sh -c 'printf "%s\n" "$1-structured" > /var/lib/bb/logs/server.999998.log' sh "${log_marker}"
+attempt=0
+until kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -q "${log_marker}-structured"; do
+  attempt=$((attempt + 1))
+  [ "${attempt}" -lt 30 ] || { echo 'structured log file was not discovered' >&2; exit 1; }
+  sleep 1
+done
+# shellcheck disable=SC2016 # Positional parameters expand inside the container.
+kubectl --namespace "${namespace}" exec bb-bb-k8s-0 -c primary-host -- \
+  sh -c 'mv /var/lib/bb/logs/server.999998.log /var/lib/bb/logs/server.999999.log
+         printf "%s\n" "$1-renamed" >> /var/lib/bb/logs/server.999999.log
+         printf "%s\n" "$1-replacement" > /var/lib/bb/logs/server.999998.log' sh "${log_marker}"
+attempt=0
+until kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -q "${log_marker}-replacement" &&
+      kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -q "${log_marker}-renamed"; do
+  attempt=$((attempt + 1))
+  [ "${attempt}" -lt 30 ] || { echo 'rotated log files were not followed' >&2; exit 1; }
+  sleep 1
+done
+count=$(kubectl --namespace "${namespace}" logs bb-bb-k8s-0 -c log-forwarder | grep -c "${log_marker}-structured")
+[ "${count}" -eq 1 ] || { echo 'rotation replayed a structured log entry' >&2; exit 1; }
+
 kubectl --namespace "${namespace}" port-forward service/bb-bb-k8s 38886:80 \
   > "${TMPDIR:-/tmp}/bb-k8s-port-forward.log" 2>&1 &
 port_forward_pid=$!

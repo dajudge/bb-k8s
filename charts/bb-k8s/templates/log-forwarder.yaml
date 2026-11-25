@@ -1,0 +1,11 @@
+{{- if .Values.logging.sidecar.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bb-k8s.fullname" . }}-log-forwarder
+  labels:
+    {{- include "bb-k8s.labels" . | nindent 4 }}
+data:
+  forward-logs.cjs: |
+    {{- .Files.Get "files/forward-logs.cjs" | nindent 4 }}
+{{- end }}

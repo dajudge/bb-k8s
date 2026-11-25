@@ -7,6 +7,7 @@ work_dir=$(mktemp -d)
 trap 'rm -rf "${work_dir}"' EXIT INT TERM
 
 helm lint "${chart}" --strict
+node --test "${repo_root}/scripts/forward-logs.test.cjs"
 helm template bb "${chart}" > "${work_dir}/default.yaml"
 
 grep -q 'kind: StatefulSet' "${work_dir}/default.yaml"
@@ -34,6 +35,10 @@ helm template bb "${chart}" --set logging.sidecar.enabled=false \
   > "${work_dir}/logging-disabled.yaml"
 if grep -q 'name: log-forwarder' "${work_dir}/logging-disabled.yaml"; then
   echo 'log-forwarder rendered while disabled' >&2
+  exit 1
+fi
+if grep -q 'forward-logs.cjs' "${work_dir}/logging-disabled.yaml"; then
+  echo 'log-forwarder config rendered while disabled' >&2
   exit 1
 fi
 

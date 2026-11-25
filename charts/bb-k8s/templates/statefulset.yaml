@@ -19,9 +19,14 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations .Values.logging.sidecar.enabled }}
       annotations:
+        {{- if .Values.logging.sidecar.enabled }}
+        checksum/log-forwarder: {{ .Files.Get "files/forward-logs.cjs" | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
     spec:
       automountServiceAccountToken: false
@@ -148,13 +153,9 @@ spec:
           command:
             - /usr/bin/tini
             - --
-            - /usr/bin/tail
+            - /usr/local/bin/node
           args:
-            - -n
-            - "0"
-            - -F
-            - /var/lib/bb/logs/server-stdio.log
-            - /var/lib/bb/logs/host-daemon-stdio.log
+            - /etc/bb-log-forwarder/forward-logs.cjs
           resources:
             {{- toYaml .Values.resources.logForwarder | nindent 12 }}
           securityContext:
@@ -163,8 +164,16 @@ spec:
             - name: bb-data
               mountPath: /var/lib/bb
               readOnly: true
+            - name: log-forwarder
+              mountPath: /etc/bb-log-forwarder
+              readOnly: true
         {{- end }}
       volumes:
+        {{- if .Values.logging.sidecar.enabled }}
+        - name: log-forwarder
+          configMap:
+            name: {{ include "bb-k8s.fullname" . }}-log-forwarder
+        {{- end }}
         - name: server-home
           emptyDir: {}
         - name: server-tmp
