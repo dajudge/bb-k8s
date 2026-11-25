@@ -76,6 +76,16 @@ Retained history is skipped when the sidecar starts. Offsets are held in memory,
 so this is a live stream rather than a durable delivery queue: use the persistent
 files to investigate entries written while the sidecar or collector was down.
 The sidecar does not delete or modify application logs.
+Only newline-terminated records are emitted. Incomplete records are buffered
+per inode until completed, including across polls and file renames, so output
+from another file cannot split a JSON record. Truncation discards the old partial
+record; startup also skips any continuation of a retained partial record.
+Records larger than 1 MiB (including the newline) are discarded with one JSON
+warning per record. The forwarder releases the partial record and skips through
+its terminating newline, then resumes with the next record. This bounds retained
+partial-record data to 1 MiB per file even for continuously growing stdio output
+without newlines; other files continue forwarding normally. Original records
+remain in the application files on the PVC.
 
 ## Log in to Codex on the primary host
 

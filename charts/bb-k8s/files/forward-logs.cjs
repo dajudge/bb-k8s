@@ -2,11 +2,12 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { once } = require('node:events');
 const { setTimeout: sleep } = require('node:timers/promises');
+const MAX_RECORD_BYTES = 1024 * 1024;
 
 // bb creates numbered files on rotation and process restart. Track offsets by
 // inode so renames do not replay entries, and rescan to discover new files.
 function createForwarder(directory, output = process.stdout) {
-  const offsets = new Map();
+  const states = new Map();
   let initialScan = true;
   return async function poll() {
     let names;
@@ -31,27 +32,79 @@ function createForwarder(directory, output = process.stdout) {
         seen.add(key);
         // Skip retained history on sidecar startup. New files are read from
         // byte zero, including lines written before the next directory scan.
-        let offset = offsets.get(key) ?? (initialScan ? stat.size : 0);
-        if (stat.size < offset) offset = 0;
-        // Bound each pass so a busy writer cannot starve other files.
-        const end = Math.min(stat.size, offset + 1024 * 1024);
-        const buffer = Buffer.alloc(64 * 1024);
-        while (offset < end) {
-          const { bytesRead } = await file.read(buffer, 0, Math.min(buffer.length, end - offset), offset);
-          if (!bytesRead) break;
-          // Copy the bytes: stdout may retain a buffer while it drains.
-          if (!output.write(Buffer.from(buffer.subarray(0, bytesRead)))) await once(output, 'drain');
-          offset += bytesRead;
+        let state = states.get(key);
+        if (!state) {
+          state = { offset: initialScan ? stat.size : 0, pending: [], pendingBytes: 0, skipUntilNewline: false };
+          // If startup catches a writer halfway through a retained record,
+          // also skip the remainder when it arrives instead of emitting it.
+          if (initialScan && stat.size) {
+            const lastByte = Buffer.alloc(1);
+            await file.read(lastByte, 0, 1, stat.size - 1);
+            state.skipUntilNewline = lastByte[0] !== 10;
+          }
+          states.set(key, state);
         }
-        offsets.set(key, offset);
+        if (stat.size < state.offset) {
+          state.offset = 0;
+          state.pending = [];
+          state.pendingBytes = 0;
+          state.skipUntilNewline = false;
+        }
+        // Bound each pass so a busy writer cannot starve other files.
+        const end = Math.min(stat.size, state.offset + 1024 * 1024);
+        const buffer = Buffer.alloc(64 * 1024);
+        while (state.offset < end) {
+          const { bytesRead } = await file.read(buffer, 0, Math.min(buffer.length, end - state.offset), state.offset);
+          if (!bytesRead) break;
+          state.offset += bytesRead;
+          let chunk = buffer.subarray(0, bytesRead);
+          if (state.skipUntilNewline) {
+            const firstNewline = chunk.indexOf(10);
+            if (firstNewline === -1) continue;
+            chunk = chunk.subarray(firstNewline + 1);
+            state.skipUntilNewline = false;
+          }
+          const firstNewline = chunk.indexOf(10);
+          const prefixBytes = firstNewline === -1 ? chunk.length : firstNewline + 1;
+          if (state.pendingBytes + prefixBytes > MAX_RECORD_BYTES) {
+            state.pending = [];
+            state.pendingBytes = 0;
+            state.skipUntilNewline = firstNewline === -1;
+            const warning = JSON.stringify({
+              level: 40,
+              component: 'log-forwarder',
+              file: name,
+              maxRecordBytes: MAX_RECORD_BYTES,
+              msg: 'Discarding oversized log record; skipping through its terminating newline'
+            }) + '\n';
+            if (!output.write(warning)) await once(output, 'drain');
+            if (state.skipUntilNewline) continue;
+            // The rest of this 64 KiB chunk contains only short records.
+            chunk = chunk.subarray(firstNewline + 1);
+          }
+          const lastNewline = chunk.lastIndexOf(10);
+          if (lastNewline === -1) {
+            if (chunk.length) {
+              state.pending.push(Buffer.from(chunk));
+              state.pendingBytes += chunk.length;
+            }
+            continue;
+          }
+          // Only complete lines may reach shared stdout. Retain a partial
+          // record with its inode across read chunks, polls and renames.
+          const records = Buffer.concat([...state.pending, chunk.subarray(0, lastNewline + 1)]);
+          state.pending = lastNewline + 1 < chunk.length ? [Buffer.from(chunk.subarray(lastNewline + 1))] : [];
+          state.pendingBytes = chunk.length - lastNewline - 1;
+          if (!output.write(records)) await once(output, 'drain');
+        }
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
       } finally {
         await file?.close();
       }
     }
-    for (const key of offsets.keys()) {
-      if (!seen.has(key)) offsets.delete(key);
+    for (const key of states.keys()) {
+      if (!seen.has(key)) states.delete(key);
     }
     initialScan = false;
   };
