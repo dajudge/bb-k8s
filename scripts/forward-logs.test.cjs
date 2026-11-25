@@ -138,3 +138,71 @@ test('skips the continuation of a retained partial record at startup', async t =
   await poll();
   assert.equal(f.text(), '{"new":true}\n');
 });
+
+test('accepts a 1 MiB record and drops an oversized record without losing its successor', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  const limit = 1024 * 1024;
+  const overhead = Buffer.byteLength(JSON.stringify({ msg: '' }) + '\n');
+  const accepted = { msg: 'x'.repeat(limit - overhead) };
+  const oversized = { msg: 'x'.repeat(limit - overhead + 1) };
+  const successor = { after: true };
+  await fs.writeFile(path.join(f.root, 'server.1.log'),
+    [accepted, oversized, successor].map(record => JSON.stringify(record) + '\n').join(''));
+  await poll();
+  await poll();
+  await poll();
+  const records = f.text().trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(records.length, 3);
+  assert.deepEqual(records[0], accepted);
+  assert.equal(records[1].component, 'log-forwarder');
+  assert.equal(records[1].maxRecordBytes, limit);
+  assert.deepEqual(records[2], successor);
+});
+
+test('discards 80 MiB of newline-free stdio while other files continue and recovers after rotation', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  let stdio = path.join(f.root, 'server-stdio.log');
+  const server = path.join(f.root, 'server.1.log');
+  const chunk = Buffer.alloc(1024 * 1024, 'x');
+  for (let tick = 0; tick < 80; tick++) {
+    if (tick === 40) {
+      const rotated = path.join(f.root, 'server-stdio.1.log');
+      await fs.rename(stdio, rotated);
+      await fs.writeFile(stdio, '{"replacement":true}\n');
+      stdio = rotated;
+    }
+    await fs.appendFile(stdio, chunk);
+    await fs.appendFile(server, JSON.stringify({ tick }) + '\n');
+    await poll();
+    // No fragment is ever emitted, and the warning is emitted once, even
+    // while the source keeps growing and its inode is renamed.
+    const records = f.text().trim().split('\n').map(line => JSON.parse(line));
+    assert.deepEqual(records.filter(record => record.tick !== undefined).at(-1), { tick });
+    assert.equal(records.filter(record => record.component === 'log-forwarder').length, tick === 0 ? 0 : 1);
+  }
+  await fs.appendFile(stdio, '\n{"recovered":true}\n');
+  await poll();
+  const records = f.text().trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(records.length, 83);
+  assert.deepEqual(records.at(-1), { recovered: true });
+});
+
+test('resets oversized-record discard state when the file is truncated', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  const file = path.join(f.root, 'server-stdio.log');
+  await fs.writeFile(file, Buffer.alloc(1024 * 1024 + 1, 'x'));
+  await poll();
+  await poll();
+  await fs.writeFile(file, '{"afterTruncation":true}\n');
+  await poll();
+  const records = f.text().trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(records.length, 2);
+  assert.equal(records[0].component, 'log-forwarder');
+  assert.deepEqual(records[1], { afterTruncation: true });
+});
