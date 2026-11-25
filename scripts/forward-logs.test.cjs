@@ -68,11 +68,73 @@ test('honors stdout backpressure and bounds bytes read per pass', async t => {
   });
   const poll = createForwarder(f.root, output);
   await poll();
-  const content = Buffer.alloc(2 * 1024 * 1024 + 13, 'x');
+  const content = Buffer.from('x\n'.repeat(1024 * 1024) + 'last\n');
   await fs.writeFile(path.join(f.root, 'host-daemon.1.log'), content);
   await poll();
   assert.equal(Buffer.concat(chunks).length, 1024 * 1024);
   await poll();
   await poll();
   assert.deepEqual(Buffer.concat(chunks), content);
+});
+
+test('preserves JSON records across the pass limit while forwarding another file', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  const records = Array.from({ length: 10000 }, (_, id) => ({ id, msg: 'x'.repeat(120) }));
+  const content = records.map(record => JSON.stringify(record) + '\n').join('');
+  assert.ok(Buffer.byteLength(content) > 1024 * 1024);
+  await fs.writeFile(path.join(f.root, 'host-daemon.1.log'), content);
+  const serverRecord = { server: true };
+  await fs.writeFile(path.join(f.root, 'server.1.log'), JSON.stringify(serverRecord) + '\n');
+  await poll();
+  const firstPass = f.text().trim().split('\n').map(line => JSON.parse(line));
+  assert.ok(firstPass.length < records.length + 1);
+  assert.deepEqual(firstPass.at(-1), serverRecord);
+  await poll();
+  const forwarded = f.text().trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(forwarded.length, records.length + 1);
+  assert.deepEqual(forwarded.filter(record => !record.server), records);
+});
+
+test('buffers partial UTF-8 records across polls and rotation without mixing files', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  const file = path.join(f.root, 'host-daemon.1.log');
+  const record = Buffer.from(JSON.stringify({ msg: 'hello 🐈' }) + '\n');
+  const split = record.indexOf(Buffer.from('🐈')) + 2;
+  await fs.writeFile(file, record.subarray(0, split));
+  await fs.writeFile(path.join(f.root, 'server.1.log'), '{"server":true}\n');
+  await poll();
+  assert.equal(f.text(), '{"server":true}\n');
+  const rotated = path.join(f.root, 'host-daemon.2.log');
+  await fs.rename(file, rotated);
+  await fs.appendFile(rotated, record.subarray(split));
+  await poll();
+  assert.equal(f.text(), '{"server":true}\n' + record.toString());
+});
+
+test('discards a buffered partial record when its file is truncated', async t => {
+  const f = await fixture(t);
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  const file = path.join(f.root, 'server.1.log');
+  await fs.writeFile(file, '{"msg":"incomplete retained text');
+  await poll();
+  assert.equal(f.text(), '');
+  await fs.writeFile(file, '{"new":true}\n');
+  await poll();
+  assert.equal(f.text(), '{"new":true}\n');
+});
+
+test('skips the continuation of a retained partial record at startup', async t => {
+  const f = await fixture(t);
+  const file = path.join(f.root, 'server.1.log');
+  await fs.writeFile(file, '{"retained":');
+  const poll = createForwarder(f.root, f.output);
+  await poll();
+  await fs.appendFile(file, 'true}\n{"new":true}\n');
+  await poll();
+  assert.equal(f.text(), '{"new":true}\n');
 });
